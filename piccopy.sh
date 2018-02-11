@@ -65,4 +65,4 @@ then
 	rm -rf ${SRC}* 
 	echo 'Done'
 fi
-echo 'Thank you and wish you a nice day!"
+echo 'Thank you and wish you a nice day!'
