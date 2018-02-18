@@ -7,9 +7,7 @@
 #	       Please put your files or directories in /pitmod/home/Obrazy and run the script
 # 	       Script to execute interactively
 
-## Modification to function programming
-
-
+### Modification to function programming
 
 ### Declarations
 DST_SRV=nasbox
@@ -18,54 +16,92 @@ DST="/mediasrv/TMP/"
 DST_STORE="/mediasrv/Zdjecia/"
 
 
-### Initial copy Pictures to nasbox for deduplication
-echo "== Copy files from $SRC to $DST_SRV:$DST =="
-rsync -avhe ssh --progress $SRC $DST_SRV:$DST && echo "Done"
+function mob_to_lap {
+    { # try
+       phone = `ls -d /var/run/user/1000/gvfs/mtp*/Phone/DCIM/Camera/` &&
+       size_phone = `du -sh $phone`
+       files_phone = `find $phone -type f | wc -l`
+
+       card = `ls -d /var/run/user/1000/gvfs/mtp*/Card/DCIM/Camera/` &&
+       size_card = `du -sh $card`
+       files_card = `find $card -type f | wc -l`
+
+        echo "Do you want to copy:"
+        echo "$phone size: $size_phone files: $files_phone "
+        echo "$card size: $size_card files: $files_card "
+        read -p "[yY]" -n 1 -r
+        if [[ $REPLY =~ ^[yY]$ ]]
+        then
+            echo "Copying files to $SRC"
+            rsync -avhP $phone ${SRC}phone/
+            rsync -avhP $card ${SRC}card/
+         fi
+    } || { #catch
+        echo "Operation failed"
+
+    }
+
+}
 
 
-### Deduplicating files
-echo "== Deduplicate $DST_SRV:$DST with $DST_SRV:$DST_STORE =="
-ssh $DST_SRV "rmlint $DST_STORE $DST"
-read -p "Are you sure you want to remove files? " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]
-then
-	echo "Deduplicating files..."
-	ssh $DST_SRV "/home/pitmod/rmlint.sh" && echo "Done"
-	
-fi
-echo "== Copy deduplicated files back from $DST_SRV:$DST to $SRC =="
-rsync -avhe ssh --delete --progress $DST_SRV:$DST $SRC && echo "Done"
+function lap_to_nas {
+    ### Initial copy Pictures to nasbox for deduplication
+    echo "== Copy files from $SRC to $DST_SRV:$DST =="
+    rsync -avhe ssh --progress $SRC $DST_SRV:$DST && echo "Done"
 
 
-### Manual categorization of files. Need to create directories in /home/pitmod/Obrazy/ i.e 2018/Wakacje_Wlochy 2017/Rozne 
-echo "== Please put pictures into directories i.e ${SRC}2018/Wakacje_Wlochy =="
+    ### Deduplicating files
+    echo "== Deduplicate $DST_SRV:$DST with $DST_SRV:$DST_STORE =="
+    ssh $DST_SRV "rmlint $DST_STORE $DST"
+    read -p "Are you sure you want to remove files? " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]
+    then
+        echo "Deduplicating files..."
+        ssh $DST_SRV "/home/pitmod/rmlint.sh" && echo "Done"
+
+    fi
+    echo "== Copy deduplicated files back from $DST_SRV:$DST to $SRC =="
+    rsync -avhe ssh --delete --progress $DST_SRV:$DST $SRC && echo "Done"
 
 
-### Copy deduplicated and categorized files to nasbox: separate rsync for each year folder
-read -p "Are you ready to copy directories to nasbox? " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]
-then
-        echo "Copy started..."
-	for i in `find $SRC -maxdepth 1 -type d | egrep "[0-9]+"`
-	do
-		echo "-- $i --"
-		rsync -avhe ssh --progress "$i/" $DST_SRV:$DST_STORE"`basename $i`/"
-	done && echo "Done"
-fi
+    ### Manual categorization of files. Need to create directories in /home/pitmod/Obrazy/ i.e 2018/Wakacje_Wlochy 2017/Rozne
+    echo "== Please put pictures into directories i.e ${SRC}2018/Wakacje_Wlochy =="
+    caja $SRC
 
 
-### Cleanups of remote /mediasrv/TMP/ and local /home/pitmod/Obrazy
-echo "== Cleanups =="
-read -p "Do you want to cleanup $DST_SRV:$DST and $SRC" -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]
-then
-	echo "Cleaning up $DST_SRV:$DST..."
-	ssh $DST_SRV "rm -rf ${DST}*"
-	echo "Cleaning up $SRC..."
-	rm -rf ${SRC}* 
-	echo 'Done'
-fi
-echo 'Thank you and wish you a nice day!'
+    ### Copy deduplicated and categorized files to nasbox: separate rsync for each year folder
+    read -p "Are you ready to copy directories to nasbox? " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]
+    then
+            echo "Copy started..."
+        for i in `find $SRC -maxdepth 1 -type d | egrep "[0-9]+"`
+        do
+            echo "-- $i --"
+            rsync -avhe ssh --progress "$i/" $DST_SRV:$DST_STORE"`basename $i`/"
+        done && echo "Done"
+    fi
+}
+
+
+function cleanups {
+    ### Cleanups of remote /mediasrv/TMP/ and local /home/pitmod/Obrazy
+    echo "== Cleanups =="
+    read -p "Do you want to cleanup $DST_SRV:$DST and $SRC" -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]
+    then
+        echo "Cleaning up $DST_SRV:$DST..."
+        ssh $DST_SRV "rm -rf ${DST}*"
+        echo "Cleaning up $SRC..."
+        rm -rf ${SRC}*
+        echo 'Done'
+    fi
+    echo 'Thank you and wish you a nice day!'
+}
+
+### main
+mob_to_lap
+#lap_to_nas
+#cleanups
