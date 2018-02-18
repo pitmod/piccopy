@@ -7,6 +7,9 @@
 #	       Please put your files or directories in /pitmod/home/Obrazy and run the script
 # 	       Script to execute interactively
 
+## Modification to function programming
+
+
 
 ### Declarations
 DST_SRV=nasbox
